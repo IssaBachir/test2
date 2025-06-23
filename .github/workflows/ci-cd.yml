@@ -1,0 +1,59 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 🔁 Checkout code
+      uses: actions/checkout@v3
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: 🚂 Train model
+      run: python scripts/train.py
+
+    - name: ✅ Evaluate model
+      run: python scripts/evaluate.py
+
+    - name: 🚨 Check threshold
+      run: |
+        python -c "import json; res = json.load(open('metrics.json')); assert res['f1'] >= float('${{ secrets.THRESHOLD_SCORE }}'), 'Score trop bas'"
+
+    - name: 🚀 Deploy to Hugging Face
+      if: success()
+      env:
+        HF_TOKEN: ${{ secrets.HF_API_KEY }}
+      run: python scripts/deploy.py
+
+    - name: ✉️ Send Email Notification
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.SMTP_USER }}
+        password: ${{ secrets.SMTP_PASS }}
+        subject: "🚀 Résultat de la CI/CD test2"
+        body: |
+          CI/CD terminé !
+
+          Statut : ${{ job.status }}
+          Branche : ${{ github.ref }}
+          Auteur : ${{ github.actor }}
+
+        to: issabachir6@gmail.com 
+        from: ${{ secrets.SMTP_USER }}
