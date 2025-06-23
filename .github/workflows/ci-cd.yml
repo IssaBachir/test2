@@ -1,0 +1,72 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+    branches:
+      - dev
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      HF_API_KEY: ${{ secrets.HF_API_KEY }}
+      THRESHOLD_SCORE: ${{ secrets.THRESHOLD_SCORE }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Setup Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install dependencies
+      run: pip install -r requirements.txt
+
+    - name: Train model
+      run: python scripts/train.py
+
+    - name: Evaluate model
+      run: python scripts/evaluate.py
+
+    - name: Check threshold and deploy
+      id: deploy_check
+      run: |
+        echo "Lecture du score dans metrics.json"
+        score=$(jq '.accuracy' metrics.json)
+        echo "Score du modèle : $score"
+        echo "Seuil requis : $THRESHOLD_SCORE"
+
+        if (( $(echo "$score >= $THRESHOLD_SCORE" | bc -l) )); then
+          echo "Seuil atteint, déploiement du modèle..."
+          python scripts/deploy.py
+          echo "deploy_status=success" >> $GITHUB_OUTPUT
+        else
+          echo "Seuil non atteint, arrêt du workflow."
+          echo "deploy_status=failed" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Send notification email
+      if: always()
+      uses: dawidd6/action-send-mail@v3
+      with:
+        server_address: smtp.gmail.com
+        server_port: 587
+        username: ${{ secrets.SMTP_USER }}
+        password: ${{ secrets.SMTP_PASS }}
+        subject: "CI/CD Pipeline - Résultat déploiement"
+        body: |
+          Statut du déploiement : ${{ steps.deploy_check.outputs.deploy_status }}
+          Score obtenu : ${{ steps.deploy_check.outputs.score }}
+          Voir les logs : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        to: issabachir6@gmail.com 
+        from: ${{ secrets.SMTP_USER }}
+
