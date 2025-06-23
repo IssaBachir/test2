@@ -11,7 +11,7 @@ def safe_label_encode(train_col, test_col):
     le = LabelEncoder()
     le.fit(train_col)
     known_labels = set(le.classes_)
-    # Remplacer les valeurs inconnues dans test_col par une valeur connue (ex : la première classe)
+    # Remplacer les valeurs inconnues dans test_col par la première classe connue
     test_col_safe = [x if x in known_labels else le.classes_[0] for x in test_col]
     return le.transform(train_col), le.transform(test_col_safe)
 
@@ -43,6 +43,10 @@ class Trainner:
         # Standardisation
         self.X_train_t = to_tensor(standardisation(X_train_num))
         self.X_test_t = to_tensor(standardisation(X_test_num))
+
+        # Conversion explicite en int pour éviter l'erreur de type
+        self.y_train = self.y_train.astype(int)
+        self.y_test = self.y_test.astype(int)
 
         # Convertir y en tenseurs longs pour CrossEntropyLoss
         self.y_train_t = to_tensor(self.y_train).long()
@@ -104,7 +108,7 @@ class Trainner:
 
 if __name__ == "__main__":
     trainner = Trainner()
-    model = DiamondModel(trainner.X_train_t.shape[1])  # attention ici au nombre de features
+    model = DiamondModel(trainner.X_train_t.shape[1])  # nombre de features
     model = trainner.train(model)
     trainner.save_model(model, f"./models/model_final.pth")
     print("Model saved")
