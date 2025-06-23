@@ -23,6 +23,14 @@ class Trainner:
         self.X_test = np.load("data/x_test.npy", allow_pickle=True)
         self.y_test = np.load("data/y_test.npy", allow_pickle=True)
 
+        # Encodage des labels y
+        self.le_y = LabelEncoder()
+        self.y_train = self.le_y.fit_transform(self.y_train)
+        # Gestion labels inconnus dans y_test
+        known_labels = set(self.le_y.classes_)
+        self.y_test = np.array([y if y in known_labels else self.le_y.classes_[0] for y in self.y_test])
+        self.y_test = self.le_y.transform(self.y_test)
+
         # Convertir en DataFrame pandas pour gérer les colonnes catégorielles
         self.X_train = pd.DataFrame(self.X_train)
         self.X_test = pd.DataFrame(self.X_test)
@@ -43,10 +51,6 @@ class Trainner:
         # Standardisation
         self.X_train_t = to_tensor(standardisation(X_train_num))
         self.X_test_t = to_tensor(standardisation(X_test_num))
-
-        # Conversion explicite en int pour éviter l'erreur de type
-        self.y_train = self.y_train.astype(int)
-        self.y_test = self.y_test.astype(int)
 
         # Convertir y en tenseurs longs pour CrossEntropyLoss
         self.y_train_t = to_tensor(self.y_train).long()
@@ -108,7 +112,7 @@ class Trainner:
 
 if __name__ == "__main__":
     trainner = Trainner()
-    model = DiamondModel(trainner.X_train_t.shape[1])  # nombre de features
+    model = DiamondModel(trainner.X_train_t.shape[1])  # nombre de features en entrée
     model = trainner.train(model)
     trainner.save_model(model, f"./models/model_final.pth")
     print("Model saved")
