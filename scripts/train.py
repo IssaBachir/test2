@@ -7,6 +7,13 @@ from sklearn.preprocessing import LabelEncoder
 from DiamondModel import DiamondModel
 from standardisation import standardisation, to_tensor
 
+def safe_label_encode(train_col, test_col):
+    le = LabelEncoder()
+    le.fit(train_col)
+    known_labels = set(le.classes_)
+    # Remplacer les valeurs inconnues dans test_col par une valeur connue (ex : la première classe)
+    test_col_safe = [x if x in known_labels else le.classes_[0] for x in test_col]
+    return le.transform(train_col), le.transform(test_col_safe)
 
 class Trainner:
     def __init__(self):
@@ -23,11 +30,11 @@ class Trainner:
         # Identifier les colonnes catégorielles (type object)
         cat_cols = self.X_train.select_dtypes(include=['object']).columns
 
-        # Encoder les colonnes catégorielles avec LabelEncoder
+        # Encoder les colonnes catégorielles avec gestion des labels inconnus
         for col in cat_cols:
-            le = LabelEncoder()
-            self.X_train[col] = le.fit_transform(self.X_train[col])
-            self.X_test[col] = le.transform(self.X_test[col])
+            train_encoded, test_encoded = safe_label_encode(self.X_train[col], self.X_test[col])
+            self.X_train[col] = train_encoded
+            self.X_test[col] = test_encoded
 
         # Convertir en numpy array après encodage
         X_train_num = self.X_train.values.astype(float)
@@ -101,4 +108,3 @@ if __name__ == "__main__":
     model = trainner.train(model)
     trainner.save_model(model, f"./models/model_final.pth")
     print("Model saved")
-   
