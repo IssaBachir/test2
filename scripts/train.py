@@ -101,3 +101,4 @@ if __name__ == "__main__":
     model = trainner.train(model)
     trainner.save_model(model, f"./models/model_final.pth")
     print("Model saved")
+   
