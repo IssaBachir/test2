@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from DiamondModel import DiamondModel
 from standardisation import standardisation, to_tensor
+import json
 
 def safe_label_encode(train_col, test_col):
     le = LabelEncoder()
@@ -60,6 +61,10 @@ def evaluate():
     accuracy = correct / len(y_test_t) * 100
 
     print(f"Evaluation Accuracy: {accuracy:.2f}%")
+
+    # ✅ Sauvegarde dans metrics.json pour GitHub Actions
+    with open("metrics.json", "w") as f:
+        json.dump({"accuracy": accuracy}, f)
 
 if __name__ == "__main__":
     evaluate()
